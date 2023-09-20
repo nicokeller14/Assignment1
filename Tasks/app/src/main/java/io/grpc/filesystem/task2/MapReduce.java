@@ -57,7 +57,6 @@ public class MapReduce {
      * @throws IOException
      */
     public static void map(String inputfilepath) throws IOException {
-
         /*
          * Insert your code here
          * Take a chunk and filter words (you could use "\\p{Punct}" for filtering punctuations and "^[a-zA-Z0-9]"
