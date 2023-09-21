@@ -57,6 +57,36 @@ public class MapReduce {
      * @throws IOException
      */
     public static void map(String inputfilepath) throws IOException {
+
+            File chunkFile = new File(inputfilepath);
+            File mapOutputDir = new File(chunkFile.getParent() + "/map");
+            if (!mapOutputDir.exists()) {
+                mapOutputDir.mkdirs();
+            }
+            File mapOutputFile = new File(mapOutputDir, "map-" + chunkFile.getName());
+
+            try (Scanner scanner = new Scanner(chunkFile)) {
+                Map<String, Integer> wordCountMap = new HashMap<>();
+                while (scanner.hasNextLine()) {
+                    String line = scanner.nextLine();
+                    String[] words = line.split("\\s+");
+                    for (String word : words) {
+                        word = word.replaceAll("\\p{Punct}", "").toLowerCase();
+                        if (word.matches("^[a-zA-Z0-9]+$")) {
+                            wordCountMap.put(word, wordCountMap.getOrDefault(word, 0) + 1);
+                        }
+                    }
+                }
+                try (BufferedWriter writer = new BufferedWriter(new FileWriter(mapOutputFile))) {
+                    for (Entry<String, Integer> entry : wordCountMap.entrySet()) {
+                        writer.write(entry.getKey() + ":" + entry.getValue());
+                        writer.newLine();
+                    }
+                }
+            }
+
+
+
         /*
          * Insert your code here
          * Take a chunk and filter words (you could use "\\p{Punct}" for filtering punctuations and "^[a-zA-Z0-9]"
@@ -75,6 +105,8 @@ public class MapReduce {
      * @throws IOException
      */
     public static void reduce(String inputfilepath, String outputfilepath) throws IOException {
+
+
 
         /*
          * Insert your code here
