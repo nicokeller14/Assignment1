@@ -10,18 +10,12 @@ package io.grpc.filesystem.task2;
 import java.util.stream.Collectors;
 import java.io.*;
 import java.nio.charset.Charset;
-import java.nio.file.Files;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map.Entry;
 import java.util.Scanner;
 import java.util.Map;
-import java.util.Timer;
-
-import io.grpc.filesystem.task2.Mapper;
 
 public class MapReduce {
 
@@ -54,48 +48,28 @@ public class MapReduce {
 
     /**
      * @param inputfilepath
+     * @return
      * @throws IOException
      */
-    public static void map(String inputfilepath) throws IOException {
+    public static String map(String inputfilepath) throws IOException {
+        File chunkFile = new File(inputfilepath);
+        File mapOutputDir = new File(chunkFile.getParent(), "map");
+        if (!mapOutputDir.exists()) {
+            mapOutputDir.mkdirs();
+        }
+        File mapOutputFile = new File(mapOutputDir, "map-" + chunkFile.getName());
 
-            File chunkFile = new File(inputfilepath);
-            File mapOutputDir = new File(chunkFile.getParent() + "/map");
-            if (!mapOutputDir.exists()) {
-                mapOutputDir.mkdirs();
-            }
-            File mapOutputFile = new File(mapOutputDir, "map-" + chunkFile.getName());
-
-            try (Scanner scanner = new Scanner(chunkFile)) {
-                Map<String, Integer> wordCountMap = new HashMap<>();
-                while (scanner.hasNextLine()) {
-                    String line = scanner.nextLine();
-                    String[] words = line.split("\\s+");
-                    for (String word : words) {
-                        word = word.replaceAll("\\p{Punct}", "").toLowerCase();
-                        if (word.matches("^[a-zA-Z0-9]+$")) {
-                            wordCountMap.put(word, wordCountMap.getOrDefault(word, 0) + 1);
-                        }
-                    }
-                }
-                try (BufferedWriter writer = new BufferedWriter(new FileWriter(mapOutputFile))) {
-                    for (Entry<String, Integer> entry : wordCountMap.entrySet()) {
-                        writer.write(entry.getKey() + ":" + entry.getValue());
-                        writer.newLine();
-                    }
+        try (Scanner scanner = new Scanner(chunkFile);
+             BufferedWriter writer = new BufferedWriter(new FileWriter(mapOutputFile))) {
+            while (scanner.hasNext()) { // Use hasNext() and next() for word by word processing
+                String word = scanner.next().replaceAll("\\p{Punct}", "").toLowerCase();
+                if (word.matches("^[a-zA-Z0-9]+$")) {
+                    writer.write(word + ":1");
+                    writer.newLine();
                 }
             }
-
-
-
-        /*
-         * Insert your code here
-         * Take a chunk and filter words (you could use "\\p{Punct}" for filtering punctuations and "^[a-zA-Z0-9]"
-         * together for filtering the words), then split the sentences to take out words and assign "1" as the initial count.
-         * Use the given mapper class to create the unsorted key-value pair.
-         * Save the map output in a file named "map-chunk001", for example, in folder
-         * path input/temp/map
-         */
-
+        }
+        return inputfilepath;
     }
 
     /**
@@ -104,23 +78,45 @@ public class MapReduce {
      * @return
      * @throws IOException
      */
-    public static void reduce(String inputfilepath, String outputfilepath) throws IOException {
+    public static String reduce(String inputfilepath, String outputfilepath) throws IOException {
+        Map<String, Integer> reduceResults = new HashMap<>();
 
+        File dir = new File(inputfilepath + "/map");
+        File[] mapFiles = dir.listFiles();
 
+        if (mapFiles != null) {
+            for (File mapFile : mapFiles) {
+                try (Scanner scanner = new Scanner(mapFile)) {
+                    while (scanner.hasNextLine()) {
+                        String[] parts = scanner.nextLine().split(":");
+                        String word = parts[0];
+                        int count = Integer.parseInt(parts[1]);
 
-        /*
-         * Insert your code here
-         * Take all the files in the map folder and reduce them to one file that shows
-         * unique words with their counts as "the:64", for example.
-         * Save the output of reduce function as output-task2.txt
-         */
+                        reduceResults.put(word, reduceResults.getOrDefault(word, 0) + count);
+                    }
+                }
+            }
+        }
 
+        // Sort the results
+        Map<String, Integer> sortedResults = reduceResults.entrySet().stream()
+                .sorted(Entry.comparingByValue(Comparator.reverseOrder()))
+                .collect(Collectors.toMap(Entry::getKey, Entry::getValue, (e1, e2) -> e1, LinkedHashMap::new));
+
+        // Save the reduce results to file
+        try (PrintWriter writer = new PrintWriter(new File(outputfilepath))) {
+            for (Entry<String, Integer> entry : sortedResults.entrySet()) {
+                writer.println(entry.getKey() + ":" + entry.getValue());
+            }
+        }
+        return inputfilepath;
     }
+
 
     /**
      * Takes a text file as an input and returns counts of each word in a text file
      * "output-task2.txt"
-     * 
+     *
      * @param args
      * @throws IOException
      */
