@@ -24,6 +24,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
 import com.task3.proto.AssignJobGrpc;
 import com.task3.proto.MapInput;
 import com.task3.proto.ReduceInput;
@@ -35,10 +36,19 @@ import java.io.*;
 import java.nio.charset.Charset;
 
 public class MrClient {
+   private CountDownLatch finishLatch;
+
    private String currentJob = null;
 
    Map<String, Integer> jobStatus = new HashMap<String, Integer>();
 
+   public MrClient() {
+      finishLatch = new CountDownLatch(1);
+   }
+
+   public void awaitCompletion() throws InterruptedException {
+      finishLatch.await();
+   }
 
    public void requestMap(String ip, Integer portnumber, String inputfilepath, String outputfilepath) throws InterruptedException {
       ManagedChannel channel = ManagedChannelBuilder.forAddress(ip, portnumber).usePlaintext().build();
@@ -58,7 +68,7 @@ public class MrClient {
          @Override
          public void onCompleted() {
             channel.shutdownNow();
-         }
+            finishLatch.countDown();}
       });
 
       for (String job : jobStatus.keySet()) {
@@ -107,6 +117,8 @@ public class MrClient {
          }
       }
       client.requestMap(ip, mapport, inputfilepath, outputfilepath);
+      client.awaitCompletion();
+
       System.out.println("bye");
 
       Set<Integer> values = new HashSet<Integer>(client.jobStatus.values());

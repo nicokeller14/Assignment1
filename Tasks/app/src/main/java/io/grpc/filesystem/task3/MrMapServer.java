@@ -62,6 +62,7 @@ public class MrMapServer {
                     // Send result back to the client
                     MapOutput output = MapOutput.newBuilder().setJobstatus(2).build();
                     responseObserver.onNext(output);
+                    responseObserver.onCompleted();
                 }
 
                 @Override

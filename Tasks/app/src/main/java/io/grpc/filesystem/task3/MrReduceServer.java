@@ -54,6 +54,9 @@ public class MrReduceServer {
             try {
                 mr.reduce(inputPath, outputFilePath);  // can throw exception
                 System.out.println("hi");
+                ReduceOutput successOutput = ReduceOutput.newBuilder().setJobstatus(2).build();
+                responseObserver.onNext(successOutput);
+                responseObserver.onCompleted();
 
 
             } catch (IOException e) {
@@ -65,7 +68,6 @@ public class MrReduceServer {
                         .build();
                 responseObserver.onNext(errorOutput);
                 responseObserver.onCompleted();
-                return;
             }
         }
 }
