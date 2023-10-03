@@ -1,12 +1,12 @@
-/* 
-* Client program to request for map and reduce functions from the Server
-* To build the project:
-* cd path/to/task3/folder
-* ./gradlew init
-* ./gradlew build
-* run the MrClient:
-* ./gradlew run -PchooseMain=io.grpc.filesystem.task3.MrClient --args="127.0.0.1 50551 50552 input/pigs.txt output/output-task3.txt"
-*/
+/*
+ * Client program to request for map and reduce functions from the Server
+ * To build the project:
+ * cd path/to/task3/folder
+ * ./gradlew init
+ * ./gradlew build
+ * run the MrClient:
+ * ./gradlew run -PchooseMain=io.grpc.filesystem.task3.MrClient --args="127.0.0.1 50551 50552 input/pigs.txt output/output-task3.txt"
+ */
 
 package io.grpc.filesystem.task3;
 
@@ -35,30 +35,52 @@ import java.io.*;
 import java.nio.charset.Charset;
 
 public class MrClient {
+   private String currentJob = null;
+
    Map<String, Integer> jobStatus = new HashMap<String, Integer>();
 
-   public  void requestMap(String ip, Integer portnumber, String inputfilepath, String outputfilepath) throws InterruptedException {
-      
-      /* 
-      * Insert your code here 
-      * Create a stub for calling map function from the server
-      * Remember that the map function uses client stream
-      * Update the job status every time the map function finishes mapping a chunk, it is useful for calling reduce function once all of the chunks are processed by the map function
-      */
 
+   public void requestMap(String ip, Integer portnumber, String inputfilepath, String outputfilepath) throws InterruptedException {
+      ManagedChannel channel = ManagedChannelBuilder.forAddress(ip, portnumber).usePlaintext().build();
+      AssignJobGrpc.AssignJobStub stub = AssignJobGrpc.newStub(channel);
+
+      StreamObserver<MapInput> requestObserver = stub.map(new StreamObserver<MapOutput>() {
+         @Override
+         public void onNext(MapOutput output) {
+            jobStatus.put(currentJob, output.getJobstatus());
+         }
+
+         @Override
+         public void onError(Throwable t) {
+            System.err.println("Error occurred: " + t.getMessage());
+         }
+
+         @Override
+         public void onCompleted() {
+            channel.shutdownNow();
+         }
+      });
+
+      for (String job : jobStatus.keySet()) {
+         currentJob = job;
+         requestObserver.onNext(MapInput.newBuilder().setInputfilepath(job).build());
+      }
+
+      requestObserver.onCompleted();
    }
+
 
    public int requestReduce(String ip, Integer portnumber, String inputfilepath, String outputfilepath) {
-       
-      /* 
-      * Insert your code here 
-      * Create a stub for calling reduce function from the server
-      * Remember that the map function uses unary call
-      */
+      ManagedChannel channel = ManagedChannelBuilder.forAddress(ip, portnumber).usePlaintext().build();
+      AssignJobGrpc.AssignJobBlockingStub stub = AssignJobGrpc.newBlockingStub(channel);
 
-      return 0; // update this return statement
+      ReduceInput input = ReduceInput.newBuilder().setInputfilepath(inputfilepath).setOutputfilepath(outputfilepath).build();
+      ReduceOutput output = stub.reduce(input);
+
+      channel.shutdownNow();
+      return output.getJobstatus();
    }
-   public static void main(String[] args) throws Exception {// update main function if required
+   public static void main(String[] args) throws Exception {
 
       String ip = args[0];
       Integer mapport = Integer.parseInt(args[1]);
@@ -85,6 +107,7 @@ public class MrClient {
          }
       }
       client.requestMap(ip, mapport, inputfilepath, outputfilepath);
+      System.out.println("bye");
 
       Set<Integer> values = new HashSet<Integer>(client.jobStatus.values());
       if (values.size() == 1 && client.jobStatus.containsValue(2)) {
