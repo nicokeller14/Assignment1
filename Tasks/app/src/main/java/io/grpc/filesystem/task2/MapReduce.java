@@ -7,6 +7,7 @@
 
 package io.grpc.filesystem.task2;
 
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.io.*;
 import java.nio.charset.Charset;
@@ -18,6 +19,7 @@ import java.util.Scanner;
 import java.util.Map;
 
 public class MapReduce {
+    private static final Logger LOGGER = Logger.getLogger(MapReduce.class.getName());
 
     public static String makeChunks(String inputFilePath) throws IOException {
         int count = 1;
@@ -79,12 +81,14 @@ public class MapReduce {
      * @throws IOException
      */
     public static String reduce(String inputfilepath, String outputfilepath) throws IOException {
+        LOGGER.info("Starting the reduce process...");
         Map<String, Integer> reduceResults = new HashMap<>();
 
         File dir = new File(inputfilepath + "/map");
         File[] mapFiles = dir.listFiles();
 
         if (mapFiles != null) {
+            LOGGER.info("Number of map files found: " + mapFiles.length);
             for (File mapFile : mapFiles) {
                 try (Scanner scanner = new Scanner(mapFile)) {
                     while (scanner.hasNextLine()) {
@@ -96,6 +100,9 @@ public class MapReduce {
                     }
                 }
             }
+        } else {
+            LOGGER.warning("No map files found in directory: " + dir.getAbsolutePath());
+            return inputfilepath;
         }
 
         // Sort the results
@@ -109,6 +116,7 @@ public class MapReduce {
                 writer.println(entry.getKey() + ":" + entry.getValue());
             }
         }
+        LOGGER.info("Reduce process completed.");
         return inputfilepath;
     }
 

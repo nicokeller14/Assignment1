@@ -15,6 +15,7 @@ import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import com.task3.proto.AssignJobGrpc;
 import com.task3.proto.MapInput;
@@ -25,6 +26,7 @@ import io.grpc.filesystem.task2.*;
 
 public class MrMapServer {
 
+    private static final Logger logger = Logger.getLogger(MrMapServer.class.getName());
     private Server server;
 
     private void start(int port) throws IOException {
@@ -51,13 +53,13 @@ public class MrMapServer {
             return new StreamObserver<MapInput>() {
                 @Override
                 public void onNext(MapInput input) {
+                    logger.info("Received MapInput for filepath: " + input.getInputfilepath());
                     // Execute map function
                     try {
                         mr.map(input.getInputfilepath());
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
-
 
                     // Send result back to the client
                     MapOutput output = MapOutput.newBuilder().setJobstatus(2).build();
@@ -67,6 +69,7 @@ public class MrMapServer {
 
                 @Override
                 public void onError(Throwable t) {
+                    logger.log(Level.SEVERE, "Error occurred during mapping", t);
                     System.err.println("Error occurred: " + t.getMessage());
                 }
 
@@ -76,8 +79,6 @@ public class MrMapServer {
                 }
             };
         }
-
-
     }
 
     public static void main(String[] args) throws IOException, InterruptedException {
@@ -89,5 +90,4 @@ public class MrMapServer {
         }
         mrServer.server.awaitTermination();
     }
-
 }
